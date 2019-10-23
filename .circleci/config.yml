@@ -1,0 +1,260 @@
+version: 2.1
+
+# Define some constants
+working_dir_name: &workingDirName ~/workspace
+java_docker_image: &javaMavenDockerImage circleci/openjdk:11.0.3-stretch
+
+# Define some configuration
+working_dir: &workingDirectory
+    working_directory: *workingDirName
+java_runtime: &javaRuntime
+    docker:
+        - image: *javaMavenDockerImage
+
+# Define some reusable parameters names and types
+docker_namespace_parameter_definition: &dockerNamespaceParameterDefinition
+    namespace:
+        type: string
+docker_repository_parameter_definition: &dockerRepositoryParameterDefinition
+    repository:
+        type: string
+docker_tag_parameter_definition: &dockerTagParameterDefinition
+    tag:
+        type: string
+docker_username_parameter_definition: &dockerUsernameParameterDefinition
+    username:
+        type: string
+docker_password_parameter_definition: &dockerPasswordParameterDefinition
+    password:
+        type: string
+
+# Composition of parameters
+docker_image_stuff_parameters: &dockerImageStuffParametersDefinitions
+    <<: *dockerNamespaceParameterDefinition
+    <<: *dockerRepositoryParameterDefinition
+    <<: *dockerTagParameterDefinition
+docker_login_stuff_parameters: &dockerLoginStuffParametersDefinitions
+    <<: *dockerUsernameParameterDefinition
+    <<: *dockerPasswordParameterDefinition
+
+
+commands:
+    retrieve_workspace:
+        description: "Retrieves the working directory in the workspace"
+        steps:
+            - attach_workspace:
+                at: *workingDirName
+
+    save_workspace:
+        description: "Saves the working directory as the workspace"
+        steps:
+            - persist_to_workspace:
+                root: *workingDirName
+                paths:
+                    - .
+
+    retrieve_maven_local_repository_from_cache:
+        description: "Retrieves the Maven's Local Repository from Cache, based on poms' checksum"
+        steps:
+            - run:
+                name: Aggregating all project's pom files in a single file
+                command: |
+                    rm -f .all-poms
+                    find . -type f -regex ".*/pom.xml" | sort -n | xargs cat >> .all-poms ;
+            - restore_cache:
+                # First try with the pom's aggregation checksum. If not available, get most recent
+                keys:
+                    - cache-{{ .Environment.SERVICE_NAME }}-{{ .Environment.CACHE_VERSION }}-{{ checksum ".all-poms" }}
+                    - cache-{{ .Environment.SERVICE_NAME }}-{{ .Environment.CACHE_VERSION }}-
+
+    generate_new_maven_local_repository:
+        description: "Generates a new Maven local repository (when checksum is different only)"
+        steps:
+            - retrieve_maven_local_repository_from_cache
+            - run:
+                name: Downloading required dependencies and plugins
+                command: mvn de.qaware.maven:go-offline-maven-plugin:resolve-dependencies -P ci-cd -P docker-build
+            - save_cache:
+                key: cache-{{ .Environment.SERVICE_NAME }}-{{ .Environment.CACHE_VERSION }}-{{ checksum ".all-poms" }}
+                paths:
+                    - ~/.m2
+
+    compile_code:
+        description: "Compiles sources of the Maven's project"
+        steps:
+            - run:
+                name: Compiling source code
+                command: mvn clean compile -P ci-cd -B -V
+
+    test_code:
+        description: "Performs tests using the Maven's test phase. Note that it will skip the compiler:compile goal"
+        steps:
+            - run:
+                name: Running tests
+                command: mvn test -P ci-cd -B -DforkCount=0 -Dmaven.main.skip --fail-at-end
+
+    save_test_results:
+        description: "Aggregates the test results and stores them."
+        steps:
+            - run:
+                name: Aggregating all project's tests results
+                command: |
+                    mkdir -p ~/test-results/junit/
+                    find . -type f -regex ".*/target/surefire-reports/.*xml" -exec cp {} ~/test-results/junit/ \;
+                when: always
+            - store_test_results:
+                    path: ~/test-results
+            - store_artifacts:
+                    path: ~/test-results/junit
+
+    docker_job:
+        description: "Setups stuff for build and pushing a Docker image"
+        steps:
+            - retrieve_workspace
+            - retrieve_maven_local_repository_from_cache
+            - setup_remote_docker
+
+    create_docker_image:
+        description: "Creates a Docker Image using Maven"
+        parameters:
+            <<: *dockerImageStuffParametersDefinitions
+        steps:
+            - run:
+                name: Creating Docker Image
+                command: |
+                  mvn package -DskipTests -P ci-cd -P docker-build -B \
+                    -Ddocker.image.prefix=<<parameters.namespace>> \
+                    -Ddocker.image.name=<<parameters.repository>> \
+                    -Ddocker.image.tag=<<parameters.tag>>
+
+    push_docker_image:
+        description: "Pushes the Docker Image to DockerHub."
+        parameters:
+            <<: *dockerImageStuffParametersDefinitions
+            <<: *dockerLoginStuffParametersDefinitions
+        steps:
+            - run:
+                name: Performing login to DockerHub
+                command: echo <<parameters.password>> | docker login -u <<parameters.username>> --password-stdin
+            - run:
+                name: Pushing Docker Image
+                command: |
+                  mvn dockerfile:push -DskipTests -P ci-cd -P docker-build \
+                    -Ddocker.image.prefix=<<parameters.namespace>> \
+                    -Ddocker.image.name=<<parameters.repository>> \
+                    -Ddocker.image.tag=<<parameters.tag>>
+
+    notify_docker_build_via_slack:
+        description: "Sends a notification via Slack indicating that a Docker image has being built"
+        parameters:
+            <<: *dockerImageStuffParametersDefinitions
+            webhook:
+                type: string
+        steps:
+            - slack/notify:
+                author_name: "CircleCI Robot"
+                title: A new Docker image is available!
+                title_link: "https://hub.docker.com/r/<<parameters.namespace>>/<<parameters.repository>>"
+                message: >
+                    A new docker image for
+                    <<parameters.namespace>>/<<parameters.repository>> is available with tag <<parameters.tag>>.\n
+                    Check https://hub.docker.com/r/<<parameters.namespace>>/<<parameters.repository>>
+                color: "#30cc30"
+                include_visit_job_action: false
+                include_project_field: false
+                include_job_number_field: false
+                webhook: <<parameters.webhook>>
+
+
+jobs:
+    compile_and_test:
+        # Apply working directory and docker image
+        <<: *workingDirectory
+        <<: *javaRuntime
+
+        steps:
+            - checkout
+            - generate_new_maven_local_repository
+            - compile_code
+            - test_code
+            - save_test_results
+            - save_workspace
+
+    build_and_push_snapshot_docker_image:
+        # Apply working directory and docker image
+        <<: *workingDirectory
+        <<: *javaRuntime
+
+        steps:
+            - docker_job
+            - create_docker_image:
+                namespace: ${DOCKER_NAMESPACE}
+                repository: ${SERVICE_NAME}
+                tag: ${CIRCLE_SHA1}
+            - push_docker_image:
+                namespace: ${DOCKER_NAMESPACE}
+                repository: ${SERVICE_NAME}
+                tag: ${CIRCLE_SHA1}
+                username: ${DOCKER_USERNAME}
+                password: ${DOCKER_PASSWORD}
+            - notify_docker_build_via_slack:
+                namespace: ${DOCKER_NAMESPACE}
+                repository: ${SERVICE_NAME}
+                tag: ${CIRCLE_SHA1}
+                webhook: ${SLACK_SNAPSHOT_BUILD_WEBHOOK}
+
+    build_and_push_release_docker_image:
+        # Apply working directory and docker image
+        <<: *workingDirectory
+        <<: *javaRuntime
+
+        steps:
+            - docker_job
+            - create_docker_image:
+                namespace: ${DOCKER_NAMESPACE}
+                repository: ${SERVICE_NAME}
+                tag: ${CIRCLE_TAG}
+            - push_docker_image:
+                namespace: ${DOCKER_NAMESPACE}
+                repository: ${SERVICE_NAME}
+                tag: ${CIRCLE_TAG}
+                username: ${DOCKER_USERNAME}
+                password: ${DOCKER_PASSWORD}
+            - notify_docker_build_via_slack:
+                namespace: ${DOCKER_NAMESPACE}
+                repository: ${SERVICE_NAME}
+                tag: ${CIRCLE_TAG}
+                webhook: ${SLACK_RELEASE_BUILD_WEBHOOK}
+
+
+workflows:
+    version: 2.1
+    snapshots:
+        jobs:
+            - compile_and_test
+            - build_and_push_snapshot_docker_image:
+                context: itbacep
+                requires:
+                    - compile_and_test
+                filters:
+                    branches:
+                        only: master
+
+    releases:
+        jobs:
+            - compile_and_test:
+                filters:
+                    tags:
+                        only: /.*/
+                    branches:
+                        ignore: /.*/
+            - build_and_push_release_docker_image:
+                context: itbacep
+                requires:
+                    - compile_and_test
+                filters:
+                    tags:
+                        only: /.*/
+
+orbs:
+    slack: circleci/slack@2.5.0

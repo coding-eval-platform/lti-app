@@ -1,0 +1,20 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org"
+      th:lang="${#locale.getLanguage()}">
+<head>
+    <title th:text="#{authentication-response-errors}"></title>
+    <meta http-equiv="Content-Type" content="text/html; charset=UTF-8"/>
+</head>
+<body>
+<h1 th:text="#{authentication-response-errors} + ':'"></h1>
+<table>
+    <tr th:if="${authenticationResponseForm.state == null}">
+        <td th:text="#{missing-state}"></td>
+    </tr>
+    <tr th:if="${authenticationResponseForm.idToken == null}">
+        <td th:text="#{missing-id-token}"></td>
+    </tr>
+</table>
+<h3 th:text="#{contact-lms-admin-provider}"></h3>
+</body>
+</html>

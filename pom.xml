@@ -1,0 +1,218 @@
+<project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
+
+    <modelVersion>4.0.0</modelVersion>
+
+    <parent>
+        <groupId>com.bellotapps.webapps</groupId>
+        <artifactId>webapps-commons-parent-project</artifactId>
+        <version>0.3.0-RELEASE</version>
+    </parent>
+
+    <groupId>ar.edu.itba.cep</groupId>
+    <artifactId>lti-app</artifactId>
+    <version>0.0.1-SNAPSHOT</version>
+    <packaging>jar</packaging>
+
+    <name>lti-app</name>
+    <url>http://maven.apache.org</url>
+
+    <properties>
+        <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
+
+        <!-- Versions -->
+        <com.spotify.dockerfile-maven.version>1.4.10</com.spotify.dockerfile-maven.version>
+        <org.springframework.cloud.version>Greenwich.SR2</org.springframework.cloud.version>
+        <ar.edu.itba.cep.commons.version>0.0.6-SNAPSHOT</ar.edu.itba.cep.commons.version>
+
+        <!-- Bootstrap class -->
+        <bootstrapClass>ar.edu.itba.cep.lti_app.Application</bootstrapClass>
+    </properties>
+
+    <dependencyManagement>
+        <dependencies>
+            <dependency>
+                <groupId>org.springframework.cloud</groupId>
+                <artifactId>spring-cloud-dependencies</artifactId>
+                <version>${org.springframework.cloud.version}</version>
+                <type>pom</type>
+                <scope>import</scope>
+            </dependency>
+            <dependency>
+                <groupId>ar.edu.itba.cep</groupId>
+                <artifactId>commons-bom</artifactId>
+                <version>${ar.edu.itba.cep.commons.version}</version>
+                <type>pom</type>
+                <scope>import</scope>
+            </dependency>
+        </dependencies>
+
+    </dependencyManagement>
+
+
+    <dependencies>
+        <!-- Lombok -->
+        <dependency>
+            <groupId>org.projectlombok</groupId>
+            <artifactId>lombok</artifactId>
+            <scope>provided</scope>
+        </dependency>
+
+        <!-- Spring -->
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-thymeleaf</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-web</artifactId>
+        </dependency>
+
+        <!-- Spring Cloud -->
+        <dependency>
+            <groupId>org.springframework.cloud</groupId>
+            <artifactId>spring-cloud-starter-netflix-eureka-client</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>org.springframework.cloud</groupId>
+            <artifactId>spring-cloud-starter-netflix-hystrix</artifactId>
+        </dependency>
+
+        <dependency>
+            <groupId>ar.edu.itba.cep</groupId>
+            <artifactId>commons-lti-config</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>ar.edu.itba.cep</groupId>
+            <artifactId>commons-lti-api</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>ar.edu.itba.cep</groupId>
+            <artifactId>commons-lti-impl</artifactId>
+            <scope>runtime</scope>
+        </dependency>
+    </dependencies>
+
+    <profiles>
+        <profile>
+            <id>development</id>
+            <activation>
+                <activeByDefault>true</activeByDefault>
+            </activation>
+        </profile>
+
+        <profile>
+            <id>complete-install</id>
+            <build>
+                <plugins>
+                    <!-- Package sources -->
+                    <plugin>
+                        <groupId>org.apache.maven.plugins</groupId>
+                        <artifactId>maven-source-plugin</artifactId>
+                    </plugin>
+                    <!-- Package docs -->
+                    <plugin>
+                        <groupId>org.apache.maven.plugins</groupId>
+                        <artifactId>maven-javadoc-plugin</artifactId>
+                    </plugin>
+                </plugins>
+            </build>
+        </profile>
+
+        <profile>
+            <id>ci-cd</id>
+        </profile>
+
+        <profile>
+            <id>docker-build</id>
+            <properties>
+                <!-- Timestamp format to be included in Docker image's tag -->
+                <maven.build.timestamp.format>yyyy-MM-dd'T'HH-mm-ss</maven.build.timestamp.format>
+                <!-- Docker Image name -->
+                <docker.image.prefix>itbacep</docker.image.prefix>
+                <docker.image.name>${project.artifactId}</docker.image.name>
+                <docker.image.tag-id>${maven.build.timestamp}</docker.image.tag-id>
+                <docker.image.tag>${project.version}-${docker.image.tag-id}</docker.image.tag>
+            </properties>
+            <build>
+                <plugins>
+                    <plugin>
+                        <groupId>com.spotify</groupId>
+                        <artifactId>dockerfile-maven-plugin</artifactId>
+                        <executions>
+                            <execution>
+                                <id>default-dockerfile</id>
+                                <goals>
+                                    <goal>build</goal>
+                                    <goal>tag</goal>
+                                    <goal>push</goal>
+                                </goals>
+                            </execution>
+                        </executions>
+                        <configuration>
+                            <repository>${docker.image.prefix}/${docker.image.name}</repository>
+                            <tag>${docker.image.tag}</tag>
+                            <skip>false</skip>
+                        </configuration>
+                    </plugin>
+                </plugins>
+            </build>
+        </profile>
+    </profiles>
+
+    <build>
+        <pluginManagement>
+            <plugins>
+                <plugin>
+                    <groupId>com.spotify</groupId>
+                    <artifactId>dockerfile-maven-plugin</artifactId>
+                    <version>${com.spotify.dockerfile-maven.version}</version>
+                    <configuration>
+                        <buildArgs>
+                            <JAR_FILE>${project.build.finalName}.jar</JAR_FILE>
+                        </buildArgs>
+                    </configuration>
+                </plugin>
+            </plugins>
+        </pluginManagement>
+        <plugins>
+            <plugin>
+                <groupId>org.springframework.boot</groupId>
+                <artifactId>spring-boot-maven-plugin</artifactId>
+                <configuration>
+                    <mainClass>${bootstrapClass}</mainClass>
+                    <layout>JAR</layout>
+                    <executable>true</executable>
+                </configuration>
+            </plugin>
+        </plugins>
+    </build>
+
+    <repositories>
+        <repository>
+            <snapshots>
+                <enabled>false</enabled>
+            </snapshots>
+            <id>bintray-coding-eval-platform-maven</id>
+            <name>bintray</name>
+            <url>https://dl.bintray.com/coding-eval-platform/maven</url>
+        </repository>
+    </repositories>
+    <pluginRepositories>
+        <pluginRepository>
+            <snapshots>
+                <enabled>false</enabled>
+            </snapshots>
+            <id>bintray-coding-eval-platform-maven</id>
+            <name>bintray-plugins</name>
+            <url>https://dl.bintray.com/coding-eval-platform/maven</url>
+        </pluginRepository>
+    </pluginRepositories>
+
+    <licenses>
+        <license>
+            <name>The Apache License, Version 2.0</name>
+            <url>http://www.apache.org/licenses/LICENSE-2.0.txt</url>
+        </license>
+    </licenses>
+</project>

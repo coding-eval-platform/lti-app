@@ -1,0 +1,65 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org"
+      th:lang="${#locale.getLanguage()}">
+<head>
+    <title th:text="#{exam-selected-title}"></title>
+    <meta http-equiv="Content-Type" content="text/html; charset=UTF-8"/>
+</head>
+<body>
+<div>
+    <h1 th:text="#{exam-selected-title}"></h1>
+    <h3 th:text="#{exam-selected-subtitle}"></h3>
+    <table>
+        <tr>
+            <td th:text="#{exam-selected-id} + ':'"></td>
+            <td th:text="${examData.getId()}"></td>
+        </tr>
+        <tr>
+            <td th:text="#{exam-selected-description} + ':'"></td>
+            <td th:text="${examData.getDescription()}"></td>
+        </tr>
+        <tr>
+            <td th:text="#{exam-selected-starting-date}  + ':'"></td>
+            <td th:text="${examData.getStartingAt()}"></td>
+        </tr>
+        <tr>
+            <td th:text="#{exam-selected-duration} + ':'"></td>
+            <td th:text="${examData.getDuration().toMinutes()} + '\''"></td>
+        </tr>
+        <tr>
+            <td th:text="#{exam-selected-awarded-score} + ':'"></td>
+            <td th:text="${examData.getMaxScore()}"></td>
+        </tr>
+    </table>
+</div>
+<form action="#" th:action="${endpoint}" method="post">
+    <br/>
+    <div>
+        <label>
+            <input type="hidden" name="JWT" th:value="${jwt}">
+        </label>
+    </div>
+    <br/>
+    <div>
+        <table>
+            <tr>
+                <td>
+                    <a th:href="@{~/lti/app/exam-selection(state=${examSelectionForm.state}, examId=${examSelectionForm.examId})}">
+                        <button type="button" th:text="#{go-back}"></button>
+                    </a>
+                </td>
+                <td>
+                    <input id=send type="submit" th:value="#{submit}"/>
+                </td>
+            </tr>
+
+        </table>
+    </div>
+
+</form>
+
+</body>
+<script>
+	document.getElementById("send").focus();
+</script>
+</html>

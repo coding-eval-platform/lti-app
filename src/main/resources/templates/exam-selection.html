@@ -1,0 +1,54 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org"
+      th:lang="${#locale.getLanguage()}">
+<head>
+    <title th:text="#{exam-selection-title}"></title>
+    <meta http-equiv="Content-Type" content="text/html; charset=UTF-8"/>
+</head>
+<body>
+<div>
+    <h1 th:text="#{exam-selection-title}"></h1>
+    <h3 th:text="#{exam-selection-subtitle}"></h3>
+</div>
+<form action="#" th:action="@{/lti/app/exam-selected}" th:object="${examSelectionForm}" method="post">
+    <div>
+        <label for="examId" th:text="#{exam-id-label} + ':'"></label>
+        <br/>
+        <input id="examId" type="text" pattern="[0-9]*" th:field="*{examId}" placeholder="123123">
+        <span th:if="${#fields.hasErrors('examId')}" style="color: red;font-weight: bold">*</span>
+    </div>
+    <br/>
+    <div>
+        <label>
+            <input type="hidden" th:field="*{state}">
+        </label>
+    </div>
+    <br/>
+    <div>
+        <table>
+            <tr>
+                <td>
+                    <button type="button" th:text="#{reset}" onclick="clearExamIdField()"></button>
+                </td>
+                <td>
+                    <input type="submit" th:value="#{submit}"/>
+                </td>
+            </tr>
+        </table>
+    </div>
+
+    <div th:if="${#fields.hasErrors('*')}">
+        <h4 th:text="#{exam-selection-form-errors} + ':'"></h4>
+        <ul>
+            <li th:each="err : ${#fields.errors('*')}" th:text="${err}"></li>
+        </ul>
+    </div>
+</form>
+</body>
+<script>
+function clearExamIdField() {
+    document.getElementById("examId").value = "";
+}
+document.getElementById("examId").focus();
+</script>
+</html>
