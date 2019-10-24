@@ -7,14 +7,10 @@
 </head>
 <body>
 <h1 th:text="#{authentication-response-errors} + ':'"></h1>
-<table>
-    <tr th:if="${authenticationResponseForm.state == null}">
-        <td th:text="#{missing-state}"></td>
-    </tr>
-    <tr th:if="${authenticationResponseForm.idToken == null}">
-        <td th:text="#{missing-id-token}"></td>
-    </tr>
-</table>
+<ul>
+    <li th:if="${authenticationResponseForm.state == null}" th:text="#{missing-state}"></li>
+    <li th:if="${authenticationResponseForm.idToken == null}" th:text="#{missing-id-token}"></li>
+</ul>
 <h3 th:text="#{contact-lms-admin-provider}"></h3>
 </body>
 </html>

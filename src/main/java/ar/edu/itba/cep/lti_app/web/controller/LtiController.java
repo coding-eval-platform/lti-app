@@ -1,9 +1,15 @@
 package ar.edu.itba.cep.lti_app.web.controller;
 
-import ar.edu.itba.cep.lti.*;
+import ar.edu.itba.cep.lti.AuthenticationRequest;
+import ar.edu.itba.cep.lti.AuthenticationResponse;
+import ar.edu.itba.cep.lti.ExamSelectedRequest;
+import ar.edu.itba.cep.lti.LtiService;
 import ar.edu.itba.cep.lti_app.web.dtos.AuthenticationResponseForm;
 import ar.edu.itba.cep.lti_app.web.dtos.ExamSelectedForm;
-import org.springframework.beans.factory.annotation.Autowired;
+import ar.edu.itba.cep.lti_app.web.dtos.LoginInitiationRequestDto;
+import ar.edu.itba.cep.lti_app.web.exceptions.AuthenticationResponseWithMissingParamsException;
+import ar.edu.itba.cep.lti_app.web.exceptions.LoginInitiationRequestWithMissingParamsException;
+import lombok.AllArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.stereotype.Controller;
@@ -22,46 +28,68 @@ import java.util.Optional;
  */
 @Controller
 @RequestMapping("lti/app")
+@AllArgsConstructor
 public class LtiController {
 
+    // ===========================================================================
+    // Constants of the authentication request handler
+    // ===========================================================================
+
+    private static final String CLIENT_ID_PARAM = "client_id";
+    private static final String LOGIN_HINT_PARAM = "login_hint";
+    private static final String REDIRECT_URI_PARAM = "redirect_uri";
+    private static final String NONCE_PARAM = "nonce";
+    private static final String LTI_MESSAGE_HINT_PARAM = "lti_message_hint";
+    private static final String STATE_PARAM = "state";
     /**
      * The "fixed" part of the authentication request {@link URI}. This part of the {@link URI} is always the same
      * (it contains fixed values).
      */
     private static final String FIXED_PART = "&prompt=none&scope=openid&response_type=id_token&response_mode=form_post";
 
-    private final LtiService ltiService;
 
+    // ===========================================================================
+    // Needed stuff
+    // ===========================================================================
+
+    /**
+     * The {@link LtiService} to which the LTI messages are routed.
+     */
+    private final LtiService ltiService;
+    /**
+     * A {@link Validator} used to validate input data.
+     */
     private final Validator validator;
 
-    @Autowired
-    public LtiController(final LtiService ltiService, final Validator validator) {
-        this.ltiService = ltiService;
-        this.validator = validator;
-    }
 
-    // TODO: cleanup code.
+    // ================================================================================================================
+    // Endpoints
+    // ================================================================================================================
 
-    @GetMapping("init-login")
+    // ================ Login initiation ================
+
+    @RequestMapping(value = "init-login")
+    @GetMapping
+    @PostMapping(consumes = MediaType.APPLICATION_FORM_URLENCODED_VALUE)
     @ResponseStatus(code = HttpStatus.TEMPORARY_REDIRECT)
-    public String login(@RequestParam("iss") final String issuer,
-                        @RequestParam("login_hint") final String loginHint,
-                        @RequestParam("target_link_uri") final String targetLinkUri,
-                        @RequestParam(value = "lti_message_hint", required = false) final String ltiMessageHint,
-                        @RequestParam(value = "lti_deployment_id", required = false) final String deploymentId,
-                        @RequestParam(value = "client_id", required = false) final String clientId) {
-        final var request = new LoginInitiationRequest(issuer, loginHint, targetLinkUri, ltiMessageHint, deploymentId, clientId);
-        final var authenticationRequest = ltiService.loginInitiation(request); // TODO: handle errors
+    public String loginGet(final LoginInitiationRequestDto loginInitiationRequestDto) {
+        if (!validator.validate(loginInitiationRequestDto).isEmpty()) {
+            throw new LoginInitiationRequestWithMissingParamsException(loginInitiationRequestDto);
+        }
+        final var authenticationRequest = ltiService.loginInitiation(loginInitiationRequestDto.toModel());
         final var uri = buildAuthenticationRequestUri(authenticationRequest);
 
         return "redirect:" + uri.toString();
     }
 
-    @PostMapping(value = "create-exam", consumes = MediaType.APPLICATION_FORM_URLENCODED_VALUE)
-    public String examSelection(final AuthenticationResponseForm form, final Model model) {
-        return handleLtiMessage(form, model, this::examSelection);
-    }
 
+    // ================= Exam selection =================
+
+    @PostMapping(value = "create-exam", consumes = MediaType.APPLICATION_FORM_URLENCODED_VALUE)
+    @ResponseStatus(code = HttpStatus.SEE_OTHER)
+    public String examSelection(final AuthenticationResponseForm form) {
+        return handleLtiMessage(form, this::examSelection);
+    }
 
     @GetMapping(value = "exam-selection")
     public String examSelection(
@@ -90,13 +118,63 @@ public class LtiController {
         return "exam-selected";
     }
 
-    private static final String CLIENT_ID_PARAM = "client_id";
-    private static final String LOGIN_HINT_PARAM = "login_hint";
-    private static final String REDIRECT_URI_PARAM = "redirect_uri";
-    private static final String NONCE_PARAM = "nonce";
 
-    private static final String LTI_MESSAGE_HINT_PARAM = "lti_message_hint";
-    private static final String STATE_PARAM = "state";
+    // ================== Exam taking ===================
+
+    @PostMapping(value = "take-exam", consumes = MediaType.APPLICATION_FORM_URLENCODED_VALUE)
+    @ResponseStatus(code = HttpStatus.SEE_OTHER)
+    public String takeExam(final AuthenticationResponseForm form) {
+        return handleLtiMessage(form, this::takeExam);
+    }
+
+    @GetMapping(value = "take-exam")
+    public String takeExam(@RequestParam("examId") final Long examId, final Model model) {
+        model.addAttribute("examId", examId);
+        return "take-exam";
+    }
+
+
+    // ================================================================================================================
+    // Helpers
+    // ================================================================================================================
+
+    /**
+     * Handles an Lti authentication response message.
+     *
+     * @param form              The {@link AuthenticationResponseForm} carrying the received data (i.e state and ID token).
+     * @param ltiMessageHandler An {@link LtiMessageHandler} with the action to be performed in case the
+     *                          {@link AuthenticationResponseForm} carries valid data.
+     *                          The result will be appended to the "redirect:" prefix.
+     * @return The result of the {@link LtiMessageHandler} if the {@link AuthenticationResponseForm} carries valid data.
+     * @throws AuthenticationResponseWithMissingParamsException If the {@code form} contains errors.
+     */
+    private String handleLtiMessage(final AuthenticationResponseForm form, final LtiMessageHandler ltiMessageHandler) {
+        if (!validator.validate(form).isEmpty()) {
+            throw new AuthenticationResponseWithMissingParamsException(form);
+        }
+        return "redirect:" + ltiMessageHandler.handle(form.toAuthenticationResponse());
+    }
+
+    /**
+     * Handles the exam selection request.
+     *
+     * @param response The {@link AuthenticationResponse} representing an exam selection deep linking request.
+     * @return A {@link String} representing the view to be shown.
+     */
+    private String examSelection(final AuthenticationResponse response) {
+        return "exam-selection?state=" + ltiService.examSelection(response).getState();
+    }
+
+    /**
+     * Handles the exam take request.
+     *
+     * @param response The {@link AuthenticationResponse} representing an exam selection resource link launch request.
+     * @return A {@link String} representing the view to be shown.
+     */
+    private String takeExam(final AuthenticationResponse response) {
+        return "take-exam?examId=1"; // TODO: communicate with ltiService
+    }
+
 
     /**
      * Creates the {@link URI} to which the user must be redirected to continue the authentication flow
@@ -117,45 +195,12 @@ public class LtiController {
         return builder.build().toUri();
     }
 
-    /**
-     * Handles an Lti authentication response message.
-     *
-     * @param form              The {@link AuthenticationResponseForm} carrying the received data (i.e state and ID token).
-     * @param model             The {@link Model} used to configure the result.
-     * @param ltiMessageHandler An {@link LtiMessageHandler} with the action to be performed in case the
-     *                          {@link AuthenticationResponseForm} carries valid data.
-     * @return The result of the {@link LtiMessageHandler} if the {@link AuthenticationResponseForm} carries valid data,
-     * or the {@code "authentication-response-error"} view otherwise.
-     */
-    private String handleLtiMessage(
-            final AuthenticationResponseForm form,
-            final Model model,
-            final LtiMessageHandler ltiMessageHandler) {
-        if (!validator.validate(form).isEmpty()) {
-            model.addAttribute("authenticationResponseForm", form);
-            return "authentication-response-error";
-        }
-
-        return ltiMessageHandler.handle(form.toAuthenticationResponse());
-    }
-
-    /**
-     * Handles the exam selection request.
-     *
-     * @param response The {@link AuthenticationResponse} representing an exam selection deep linking request.
-     * @return A {@link String} representing the view to be shown.
-     */
-    private String examSelection(final AuthenticationResponse response) {
-        final var examSelectionResponse = ltiService.examSelection(response); // TODO: handle errors
-        return "redirect:exam-selection?state=" + ltiService.examSelection(response).getState();
-    }
-
 
     /**
      * A functional interface that defines a method to handle LTI messages.
-     * This method will be called by {@link #handleLtiMessage(AuthenticationResponseForm, Model, LtiMessageHandler)}
+     * This method will be called by {@link #handleLtiMessage(AuthenticationResponseForm, LtiMessageHandler)}
      * if the {@link AuthenticationResponseForm} is valid.
-     * This method should redirect to the corresponding endpoint if the message could be handled.
+     * The result of this method will be appended to the "redirect:" prefix.
      */
     @FunctionalInterface
     private interface LtiMessageHandler {

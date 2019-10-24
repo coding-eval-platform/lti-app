@@ -1,0 +1,17 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org"
+      th:lang="${#locale.getLanguage()}">
+<head>
+    <title th:text="#{login-initiation-error}"></title>
+    <meta http-equiv="Content-Type" content="text/html; charset=UTF-8"/>
+</head>
+<body>
+<h1 th:text="#{login-initiation-error} + ':'"></h1>
+<ul>
+    <li th:if="${loginInitiationRequestDto.issuer == null}" th:text="#{missing-issuer}"></li>
+    <li th:if="${loginInitiationRequestDto.loginHint == null}" th:text="#{missing-login-hint}"></li>
+    <li th:if="${loginInitiationRequestDto.targetLinkUri == null}" th:text="#{missing-target-link-uri}"></li>
+</ul>
+<h3 th:text="#{contact-lms-admin-provider}"></h3>
+</body>
+</html>
