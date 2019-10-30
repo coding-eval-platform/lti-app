@@ -1,0 +1,15 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org"
+      th:lang="${#locale.getLanguage()}">
+<head>
+    <title th:text="#{exam-with-error}"></title>
+    <meta http-equiv="Content-Type" content="text/html; charset=UTF-8"/>
+</head>
+<body>
+<h1 th:text="#{exam-with-error} + ':'"></h1>
+<ul>
+    <li th:if="${cause == 'non-existing'}" th:text="#{non-existing-exam} + ' ' + ${examId}"></li>
+    <li th:if="${cause == 'not-upcoming'}" th:text="#{not-upcoming-exam}"></li>
+</ul>
+</body>
+</html>

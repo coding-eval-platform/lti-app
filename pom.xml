@@ -24,6 +24,7 @@
         <com.spotify.dockerfile-maven.version>1.4.10</com.spotify.dockerfile-maven.version>
         <org.springframework.cloud.version>Greenwich.SR2</org.springframework.cloud.version>
         <ar.edu.itba.cep.commons.version>0.0.6-SNAPSHOT</ar.edu.itba.cep.commons.version>
+        <org.apache.commons.commons-text.version>1.8</org.apache.commons.commons-text.version>
 
         <!-- Bootstrap class -->
         <bootstrapClass>ar.edu.itba.cep.lti_app.Application</bootstrapClass>
@@ -45,6 +46,11 @@
                 <type>pom</type>
                 <scope>import</scope>
             </dependency>
+            <dependency>
+                <groupId>org.apache.commons</groupId>
+                <artifactId>commons-text</artifactId>
+                <version>${org.apache.commons.commons-text.version}</version>
+            </dependency>
         </dependencies>
 
     </dependencyManagement>
@@ -58,6 +64,12 @@
             <scope>provided</scope>
         </dependency>
 
+        <!-- Apache commons -->
+        <dependency>
+            <groupId>org.apache.commons</groupId>
+            <artifactId>commons-text</artifactId>
+        </dependency>
+
         <!-- Spring -->
         <dependency>
             <groupId>org.springframework.boot</groupId>
@@ -66,6 +78,11 @@
         <dependency>
             <groupId>org.springframework.boot</groupId>
             <artifactId>spring-boot-starter-web</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-configuration-processor</artifactId>
+            <optional>true</optional>
         </dependency>
 
         <!-- Spring Cloud -->
@@ -78,6 +95,7 @@
             <artifactId>spring-cloud-starter-netflix-hystrix</artifactId>
         </dependency>
 
+        <!-- CEP Commons -->
         <dependency>
             <groupId>ar.edu.itba.cep</groupId>
             <artifactId>commons-lti-config</artifactId>

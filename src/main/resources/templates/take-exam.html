@@ -7,8 +7,10 @@
 </head>
 <body>
 <div>
-    <h1 th:text="#{not-implemented-yet}"></h1>
     <h4 th:text="#{selected-exam} + ': ' + ${examId}"></h4>
+</div>
+<div>
+    <iframe th:src="${examTakingUrl}" style="width: 100%; height: auto;"></iframe>
 </div>
 </body>
 </html>
