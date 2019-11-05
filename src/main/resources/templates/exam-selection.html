@@ -10,7 +10,7 @@
     <h1 th:text="#{exam-selection-title}"></h1>
     <h3 th:text="#{exam-selection-subtitle}"></h3>
 </div>
-<form action="#" th:action="@{/lti/app/exam-selected}" th:object="${examSelectionForm}" method="post">
+<form action="#" th:action="@{/exam-selection/selected}" th:object="${examSelectionForm}" method="post">
     <div>
         <label for="examId" th:text="#{exam-id-label} + ':'"></label>
         <br/>

@@ -98,16 +98,11 @@
         <!-- CEP Commons -->
         <dependency>
             <groupId>ar.edu.itba.cep</groupId>
-            <artifactId>commons-lti-config</artifactId>
-        </dependency>
-        <dependency>
-            <groupId>ar.edu.itba.cep</groupId>
             <artifactId>commons-lti-api</artifactId>
         </dependency>
         <dependency>
             <groupId>ar.edu.itba.cep</groupId>
-            <artifactId>commons-lti-impl</artifactId>
-            <scope>runtime</scope>
+            <artifactId>commons-lti-shared</artifactId>
         </dependency>
     </dependencies>
 

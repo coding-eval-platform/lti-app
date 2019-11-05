@@ -24,7 +24,7 @@ public class ExceptionController {
             ExternalServiceException.class
     })
     @ResponseStatus(HttpStatus.SERVICE_UNAVAILABLE)
-    public String handleExternalServiceException() {
+    public String handleExternalServiceException(final ExternalServiceException e) {
         return "external-service-exception";
     }
 
