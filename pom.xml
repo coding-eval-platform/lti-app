@@ -23,7 +23,7 @@
         <!-- Versions -->
         <com.spotify.dockerfile-maven.version>1.4.10</com.spotify.dockerfile-maven.version>
         <org.springframework.cloud.version>Greenwich.SR2</org.springframework.cloud.version>
-        <ar.edu.itba.cep.commons.version>0.0.6-SNAPSHOT</ar.edu.itba.cep.commons.version>
+        <ar.edu.itba.cep.commons.version>0.0.6-RELEASE</ar.edu.itba.cep.commons.version>
         <org.apache.commons.commons-text.version>1.8</org.apache.commons.commons-text.version>
 
         <!-- Bootstrap class -->
