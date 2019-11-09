@@ -6,13 +6,11 @@ import org.springframework.boot.autoconfigure.SpringBootApplication;
 import org.springframework.boot.builder.SpringApplicationBuilder;
 import org.springframework.boot.context.properties.ConfigurationProperties;
 import org.springframework.boot.context.properties.EnableConfigurationProperties;
-import org.springframework.cloud.client.circuitbreaker.EnableCircuitBreaker;
 
 /**
  * Main class.
  */
 @SpringBootApplication
-@EnableCircuitBreaker
 @EnableConfigurationProperties(Application.Properties.class)
 public class Application {
 
