@@ -54,7 +54,7 @@ eureka:
       default-zone: "http://localhost:8761/eureka/"
 
 lti-app:
-  exam-taking-url-template: "https://cep.bellotapps.com/take-exam?exam-id=${exam-id}&access-token=${access-token}&refresh-token=${refresh-token}&token-id=${token-id}"
+  exam-taking-url-template: "https://cep.bellotapps.com/student-login?exam-id=${exam-id}&access-token=${access-token}&refresh-token=${refresh-token}&token-id=${token-id}"
 
 ---
 # Configuration for Staging Environment
