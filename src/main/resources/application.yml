@@ -50,8 +50,8 @@ spring:
 
 eureka:
   client:
-    service-url:
-      default-zone: "http://localhost:8761/eureka/"
+    serviceUrl:
+      defaultZone: "http://localhost:8761/eureka/"
 
 lti-app:
   exam-taking-url-template: "https://cep.bellotapps.com/student-login?exam-id=${exam-id}&access-token=${access-token}&refresh-token=${refresh-token}&token-id=${token-id}"
